@@ -1032,6 +1032,9 @@ h3,h4{margin:0}
 .src .th{line-height:1.6}
 .sum td,.sum th{line-height:1.5}
 .what .big.th,p.big.th{line-height:1.55}
+.sum td.cmt{white-space:pre-wrap;overflow-wrap:anywhere}
+.flow .sum th .th{display:block}
+.flow .sum th{width:44%}
 </style>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -2321,8 +2324,22 @@ add({sec:'summary',nocm:true,title:'Check and send',th:'ตรวจคำตอ
   const rows=Object.keys(SETS).map(k=>{const a=arr(ME,k);const sec=SETS[k].sec;const head=sec!==lastSec?`<tr class="sumsec"><td colspan="2">${esc(SN[sec])}</td></tr>`:'';lastSec=sec;return `${head}<tr><th>${esc(SETS[k].label)} <span class="th">${SETTH[k]||''}</span></th><td>${a.length?a.map(o=>withTh(optName(k,o),optNameTh(k,o))).join('<br>'):'<span class="mute">Not picked · ยังไม่ได้เลือก</span>'}</td></tr>`}).join('');
   const nC=Object.values(S.cm||{}).filter(v=>String(v).trim()).length;
   const missing=!(ab.gender&&ab.age&&ab.area);
+  /* what the person wrote themselves: their own words, then every comment with the page it was written on */
+  const own=S.own||{};
+  const txt=(en,th,v,none)=>`<tr><th>${esc(en)} <span class="th">${th}</span></th><td>${String(v||'').trim()?esc(v):`<span class="mute">${none}</span>`}</td></tr>`;
+  const aboutMore=(String(ab.district||'').trim()?txt('District','เขต',ab.district,''):'')+(String(ab.jobtext||'').trim()?txt('Your work, in your words','งานของคุณ ในแบบของคุณ',ab.jobtext,''):'');
+  const ownRows=`<tr class="sumsec"><td colspan="2">Your own ideas · ไอเดียของคุณเอง</td></tr>`
+    +txt('Your own promise','คำสัญญาในแบบของคุณ',own.promise,'Not written · ยังไม่ได้เขียน')
+    +txt('Your own tagline','สโลแกนในแบบของคุณ',own.tagline,'Not written · ยังไม่ได้เขียน')
+    +txt('Your own hashtags','แฮชแท็กในแบบของคุณ',own.hashtags,'Not written · ยังไม่ได้เขียน');
+  const keyOf=d=>d.sec+'|'+stripTags(d.title)+(d.kick?' '+d.kick:'');
+  const at=k=>{const i=DECK.findIndex(d=>keyOf(d)===k);return i<0?DECK.length:i};
+  const cms=Object.entries(S.cm||{}).filter(([k,v])=>String(v).trim()).sort((x,y)=>at(x[0])-at(y[0]));
+  const cmRows=`<tr class="sumsec"><td colspan="2">Your comments · ความคิดเห็นของคุณ</td></tr>`+(cms.length
+    ?cms.map(([k,v])=>{const d=DECK[at(k)];return `<tr><th>${d?`${esc(stripTags(d.title))}${d.th?` <span class="th">${d.th}</span>`:''}`:esc(k.split('|').slice(1).join(' '))}</th><td class="cmt">${esc(v)}</td></tr>`}).join('')
+    :`<tr><td colspan="2"><span class="mute">No comments yet · ยังไม่มีความคิดเห็น</span></td></tr>`);
   const box=S.sent?`<div class="sendbox done"><b style="font-size:22px">Thank you · ขอบคุณ</b><p>Your answers were sent on ${esc(new Date(S.sent).toLocaleString())}.</p><p class="th">ส่งคำตอบของคุณแล้ว เมื่อ ${esc(new Date(S.sent).toLocaleString('th-TH'))}</p><p>If you change anything, you can send again.</p><p class="th">ถ้าแก้คำตอบ คุณส่งใหม่ได้</p><button type="button" class="btn" id="sendBtn">Send again · ส่งอีกครั้ง</button></div>`:`<div class="sendbox"><b style="font-size:20px">Ready to send? · พร้อมส่งไหม</b><p>You wrote ${nC} ${nC===1?'comment':'comments'}. You can still go back and change anything.</p><p class="th">คุณเขียนความคิดเห็น ${nC} ข้อ ยังกลับไปแก้อะไรก็ได้</p>${missing?`<p class="warn">Please answer your gender, age and where you live first. · กรุณาตอบเรื่องเพศ อายุ และที่ที่คุณอยู่ก่อน <button type="button" class="vbtn" data-go="${firstOf.hello+2}">About you · เกี่ยวกับคุณ</button></p>`:''}<button type="button" class="btn" id="sendBtn">Send · ส่งคำตอบ</button><p class="mute" style="font-size:12.5px" id="sendmsg"></p></div>`;
-  return `<div class="send"><div style="overflow:auto;min-height:0"><table class="sum"><tbody>${aboutRows}${rows}</tbody></table></div><div style="display:grid;gap:10px;align-content:start">${box}<div id="copywrap" hidden><p style="margin:0;font-size:13px">Copy this and send it to the person who shared this page with you. · คัดลอกข้อความนี้แล้วส่งให้คนที่แชร์หน้านี้ให้คุณ</p><button type="button" class="btn" id="copy" style="margin-top:8px">Copy · คัดลอก</button><textarea id="copyout" class="copybox" readonly aria-label="Your answers"></textarea></div></div></div>`}});
+  return `<div class="send"><div style="overflow:auto;min-height:0"><table class="sum"><tbody>${aboutRows}${aboutMore}${rows}${ownRows}${cmRows}</tbody></table></div><div style="display:grid;gap:10px;align-content:start">${box}<div id="copywrap" hidden><p style="margin:0;font-size:13px">Copy this and send it to the person who shared this page with you. · คัดลอกข้อความนี้แล้วส่งให้คนที่แชร์หน้านี้ให้คุณ</p><button type="button" class="btn" id="copy" style="margin-top:8px">Copy · คัดลอก</button><textarea id="copyout" class="copybox" readonly aria-label="Your answers"></textarea></div></div></div>`}});
 DECK.forEach((s,i)=>{if(!s.intro&&!(s.sec in firstOf))firstOf[s.sec]=i});
 
 /* ---------- render ---------- */
